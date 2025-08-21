@@ -18,5 +18,8 @@
   },
   "keywords": ["gps", "chat", "location", "real-time"],
   "author": "GPS Chat Team",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
