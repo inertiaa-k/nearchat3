@@ -19,39 +19,66 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// SQLite 데이터베이스 설정 (Vercel 환경 대응)
+// 루트 경로 핸들러 추가
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// 헬스 체크 엔드포인트
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// SQLite 데이터베이스 설정 (Render 환경 대응)
 let db;
 try {
-  db = new sqlite3.Database('chat.db');
+  db = new sqlite3.Database('chat.db', (err) => {
+    if (err) {
+      console.log('SQLite 데이터베이스 초기화 실패, 메모리 기반으로 전환:', err.message);
+      db = null;
+    } else {
+      console.log('SQLite 데이터베이스에 성공적으로 연결되었습니다.');
+      // 데이터베이스 초기화
+      db.serialize(() => {
+        db.run(`CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          socket_id TEXT UNIQUE,
+          username TEXT,
+          latitude REAL,
+          longitude REAL,
+          last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+          if (err) {
+            console.log('users 테이블 생성 오류:', err.message);
+          } else {
+            console.log('users 테이블이 준비되었습니다.');
+          }
+        });
+        
+        db.run(`CREATE TABLE IF NOT EXISTS messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sender_id TEXT,
+          sender_name TEXT,
+          message TEXT,
+          latitude REAL,
+          longitude REAL,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+          if (err) {
+            console.log('messages 테이블 생성 오류:', err.message);
+          } else {
+            console.log('messages 테이블이 준비되었습니다.');
+          }
+        });
+      });
+    }
+  });
 } catch (error) {
   console.log('SQLite 데이터베이스 초기화 실패, 메모리 기반으로 전환:', error.message);
-  // Vercel 환경에서는 파일 시스템 접근이 제한적일 수 있음
   db = null;
 }
 
-// 데이터베이스 초기화
-if (db) {
-  db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      socket_id TEXT UNIQUE,
-      username TEXT,
-      latitude REAL,
-      longitude REAL,
-      last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-    
-    db.run(`CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sender_id TEXT,
-      sender_name TEXT,
-      message TEXT,
-      latitude REAL,
-      longitude REAL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-  });
-} else {
+if (!db) {
   console.log('데이터베이스 없이 메모리 기반으로 실행됩니다.');
 }
 
@@ -273,15 +300,23 @@ app.get('/api/messages', (req, res) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
+console.log('서버 시작 준비 중...');
+console.log(`PORT: ${PORT}`);
+console.log(`HOST: ${HOST}`);
+console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+
 server.listen(PORT, HOST, () => {
-  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+  console.log(`✅ 서버가 포트 ${PORT}에서 성공적으로 실행 중입니다.`);
   console.log(`환경: ${process.env.NODE_ENV || 'development'}`);
   if (process.env.NODE_ENV === 'production') {
-    console.log(`프로덕션 서버가 실행 중입니다.`);
+    console.log(`🚀 프로덕션 서버가 실행 중입니다.`);
   } else {
-    console.log(`http://localhost:${PORT}에서 접속하세요.`);
+    console.log(`🌐 http://localhost:${PORT}에서 접속하세요.`);
   }
+  console.log(`💚 헬스 체크: http://localhost:${PORT}/health`);
 }).on('error', (error) => {
-  console.error('서버 시작 오류:', error);
+  console.error('❌ 서버 시작 오류:', error);
+  console.error('오류 코드:', error.code);
+  console.error('오류 메시지:', error.message);
   process.exit(1);
 });
