@@ -112,10 +112,12 @@ io.on('connection', (socket) => {
     });
 
     // 데이터베이스에 사용자 정보 저장
-    db.run(
-      'INSERT OR REPLACE INTO users (socket_id, username, latitude, longitude, last_seen) VALUES (?, ?, ?, ?, ?)',
-      [socket.id, username, latitude, longitude, new Date().toISOString()]
-    );
+    if (db) {
+      db.run(
+        'INSERT OR REPLACE INTO users (socket_id, username, latitude, longitude, last_seen) VALUES (?, ?, ?, ?, ?)',
+        [socket.id, username, latitude, longitude, new Date().toISOString()]
+      );
+    }
 
     // 근처 사용자들에게 새 사용자 알림
     const nearbyUsers = findNearbyUsers(latitude, longitude, socket.id);
@@ -144,10 +146,12 @@ io.on('connection', (socket) => {
       user.lastSeen = new Date();
       
       // 데이터베이스 업데이트
-      db.run(
-        'UPDATE users SET latitude = ?, longitude = ?, last_seen = ? WHERE socket_id = ?',
-        [latitude, longitude, new Date().toISOString(), socket.id]
-      );
+      if (db) {
+        db.run(
+          'UPDATE users SET latitude = ?, longitude = ?, last_seen = ? WHERE socket_id = ?',
+          [latitude, longitude, new Date().toISOString(), socket.id]
+        );
+      }
 
       // 근처 사용자들에게 위치 업데이트 알림
       const nearbyUsers = findNearbyUsers(latitude, longitude, socket.id);
@@ -189,10 +193,12 @@ io.on('connection', (socket) => {
       socket.emit('messageSent', messageData);
 
       // 데이터베이스에 메시지 저장
-      db.run(
-        'INSERT INTO messages (sender_id, sender_name, message, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?)',
-        [socket.id, user.username, message, user.latitude, user.longitude, new Date().toISOString()]
-      );
+      if (db) {
+        db.run(
+          'INSERT INTO messages (sender_id, sender_name, message, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?)',
+          [socket.id, user.username, message, user.latitude, user.longitude, new Date().toISOString()]
+        );
+      }
 
       console.log(`${user.username}: ${message}`);
     }
@@ -241,7 +247,7 @@ app.get('/api/users', (req, res) => {
 app.get('/api/messages', (req, res) => {
   const { lat, lon, radius = 30 } = req.query;
   
-  if (lat && lon) {
+  if (lat && lon && db) {
     db.all(
       'SELECT * FROM messages WHERE timestamp > datetime("now", "-1 hour") ORDER BY timestamp DESC LIMIT 50',
       (err, rows) => {
@@ -275,4 +281,7 @@ server.listen(PORT, HOST, () => {
   } else {
     console.log(`http://localhost:${PORT}에서 접속하세요.`);
   }
+}).on('error', (error) => {
+  console.error('서버 시작 오류:', error);
+  process.exit(1);
 });
