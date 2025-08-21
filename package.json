@@ -1,0 +1,22 @@
+{
+  "name": "gps-chat",
+  "version": "1.0.0",
+  "description": "GPS 기반 근처 사람들과 채팅하는 웹사이트",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "sqlite3": "^5.1.6",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["gps", "chat", "location", "real-time"],
+  "author": "GPS Chat Team",
+  "license": "MIT"
+}
